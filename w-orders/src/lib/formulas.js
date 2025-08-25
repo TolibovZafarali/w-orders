@@ -90,11 +90,23 @@ export function calcShoppingScore(input, opts = {}) {
   const dOut = nonNeg(input.dOut);
   const dBack = nonNeg(input.dBack);
   const customers = Math.max(1, Math.floor(toNumber(input.customers) || 1));
+
+  // qty is still the same structure; UI will compute qLight from totalQty - heavies
   const qty = normalizeQty(input.qty);
 
+  // NEW: itemCount (distinct SKUs). Clamp to [0, total unweighted units].
+  const rawItemCount = Math.max(0, Math.floor(toNumber(input.itemCount) || 0));
+  const qTotalUnits = unweightedTotal(qty);
+  const itemCount = Math.min(rawItemCount, qTotalUnits);
+
+  // Weighted quantity for CARRY effort (heavies punished)
   const Qw = weightedQuantity(qty, multipliers);
-  const Eitems = shoppingItemEffort(Qw, cfg);
-  const EqMi = dOut + dBack + Eitems + cfg.customerOverhead * (customers - 1);
+
+  // Split item effort:
+  const Epath = cfg.itemPathCost * itemCount;            // path/locate per distinct item
+  const Ecarry = shoppingItemEffort(Qw, cfg);            // carry/load effort by weighted quantity
+
+  const EqMi = dOut + dBack + Epath + Ecarry + cfg.customerOverhead * (customers - 1);
 
   const R = safeDiv(payout, EqMi);
   const score = scoreFromRate(R, cfg.R_BAD, cfg.R_GREAT);
@@ -102,11 +114,15 @@ export function calcShoppingScore(input, opts = {}) {
 
   return {
     kind: "shopping",
-    inputs: { payout, dOut, dBack, customers, qty },
+    inputs: { payout, dOut, dBack, customers, qty, itemCount },
     paramsUsed: { multipliers, cfg, thresholds },
     breakdown: {
+      qTotalUnits: qTotalUnits,
+      itemCount: itemCount,
       Qw: round(Qw, 2),
-      Eitems: round(Eitems, 2),
+      Epath: round(Epath, 2),
+      Ecarry: round(Ecarry, 2),
+      Eitems: round(Epath + Ecarry, 2),
       EqMi: round(EqMi, 2),
       R: round(R, 2),
     },
@@ -115,6 +131,7 @@ export function calcShoppingScore(input, opts = {}) {
     valid: EqMi > 0,
   };
 }
+
 
 /**
  * PICKUP SCORE
@@ -176,9 +193,21 @@ export function payoutForTargetScore(eqMi, targetScore, map) {
 }
 
 // --- Tiny self-checks ---
-// console.log(
-//   calcShoppingScore({
-//     payout: 24.95, dOut: 5.8, dBack: 5.8, customers: 2,
-//     qty: { qLight: 16, qWater: 0, qLitter: 0, qDog: 0, qSoda: 0, qHeavyOther: 0 }
-//   })
-// );
+console.log(
+  calcShoppingScore({
+    payout: 47.32, dOut: 9.7, dBack: 9.7, customers: 2,
+    qty: { qLight: 56, qWater: 0, qLitter: 0, qDog: 0, qSoda: 0, qHeavyOther: 0 }
+  })
+);
+
+// ADD under helpers:
+function unweightedTotal(q) {
+  return (
+    (q?.qLight ?? 0) +
+    (q?.qWater ?? 0) +
+    (q?.qLitter ?? 0) +
+    (q?.qDog ?? 0) +
+    (q?.qSoda ?? 0) +
+    (q?.qHeavyOther ?? 0)
+  );
+}

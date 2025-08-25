@@ -1,35 +1,60 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import Tabs from "./components/Tabs.jsx";
+import ShoppingForm from "./components/ShoppingForm.jsx";
+import PickupForm from "./components/PickupForm.jsx";
+import ResultCard from "./components/ResultCard.jsx";
+import { calcShoppingScore, calcPickupScore } from "./lib/formulas.js";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [tab, setTab] = useState("shopping"); // 'shopping' | 'pickup'
+  const [result, setResult] = useState(null);
+
+  const handleWorthIt = ({ kind, input }) => {
+    if (kind === "shopping") {
+      const r = calcShoppingScore(input);
+      setResult(r);
+    } else if (kind === "pickup") {
+      const r = calcPickupScore(input);
+      setResult(r);
+    } else {
+      setResult({ pending: true, kind });
+    }
+  };
+
+  const handleReset = () => setResult(null);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div className="app">
+      <header className="app__header">
+        <h1>Is This Spark Offer Worth It?</h1>
+        <p className="subtitle">Quick calculator for Shopping &amp; Pickup runs</p>
+      </header>
 
-export default App
+      <Tabs
+        value={tab}
+        onChange={(v) => {
+          setTab(v);
+          setResult(null);
+        }}
+        tabs={[
+          { id: "shopping", label: "Shopping" },
+          { id: "pickup", label: "Pickup" },
+        ]}
+      />
+
+      <main className="app__main">
+        {tab === "shopping" ? (
+          <ShoppingForm onWorthIt={handleWorthIt} onReset={handleReset} />
+        ) : (
+          <PickupForm onWorthIt={handleWorthIt} onReset={handleReset} />
+        )}
+
+        <ResultCard result={result} />
+      </main>
+
+      <footer className="app__footer">
+        <small>v0.1 • No data stored. Values are estimates. Tune weights later.</small>
+      </footer>
+    </div>
+  );
+}
