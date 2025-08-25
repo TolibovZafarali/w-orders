@@ -1,17 +1,23 @@
 import { useId } from "react";
 
+/**
+ * Icon-first number input.
+ * - Renders icon or $/mi as prefix/suffix; hides text labels visually.
+ * - Hides 0 by default so fields look blank until typed.
+ */
 export default function NumberInput({
-  label,
+  label,           // still used for aria-label
   value,
   onChange,
   id,
   min = 0,
   step = 1,
   placeholder = "",
-  suffix = "",
-  prefix = "",
+  suffix = "",     // e.g., "mi", "×"
+  prefix = "",     // e.g., "$"
+  icon = "",       // material symbol name, e.g., "near_me", "group"
   disabled = false,
-  hideZero = true,   // NEW: default behavior hides 0
+  hideZero = true,
 }) {
   const autoId = useId();
   const inputId = id ?? autoId;
@@ -29,15 +35,24 @@ export default function NumberInput({
     if (clamped !== v) onChange?.(clamped);
   };
 
-  // 👇 show empty when value is 0 (and hideZero is on)
-  const displayValue =
-    hideZero && value === 0 ? "" : value;
+  const displayValue = hideZero && value === 0 ? "" : value;
 
   return (
     <div className="form-row">
-      {label && <label htmlFor={inputId}>{label}</label>}
+      {/* visually hidden label for a11y */}
+      {label && (
+        <label htmlFor={inputId} style={{ position:'absolute', width:1, height:1, margin:-1, padding:0, overflow:'hidden', clip:'rect(0 0 0 0)', border:0 }}>
+          {label}
+        </label>
+      )}
       <div className="ni-wrap">
-        {prefix ? <span className="ni-affix ni-prefix">{prefix}</span> : null}
+        {/* Icon OR prefix */}
+        {icon ? (
+          <span className="ni-prefix"><span className="ms">{icon}</span></span>
+        ) : prefix ? (
+          <span className="ni-prefix">{prefix}</span>
+        ) : null}
+
         <input
           id={inputId}
           type="number"
@@ -49,9 +64,12 @@ export default function NumberInput({
           min={min}
           step={step}
           placeholder={placeholder}
+          aria-label={label || icon || prefix || suffix}
           disabled={disabled}
         />
-        {suffix ? <span className="ni-affix ni-suffix">{suffix}</span> : null}
+
+        {/* Suffix */}
+        {suffix ? <span className="ni-suffix">{suffix}</span> : null}
       </div>
     </div>
   );
