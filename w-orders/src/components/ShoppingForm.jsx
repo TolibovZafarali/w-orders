@@ -1,29 +1,22 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import NumberInput from "./NumberInput.jsx";
-import Toggle from "./Toggle.jsx";
 
+/** Minimal heavy fields are hidden by default for speed */
 const INITIAL_HEAVY = { qWater: 0, qLitter: 0, qDog: 0, qSoda: 0, qHeavyOther: 0 };
 
 export default function ShoppingForm({ onWorthIt, onReset }) {
   const [payout, setPayout] = useState(0);
-  const [dOut, setDOut] = useState(0);
-  const [sameBack, setSameBack] = useState(true);
-  const [dBack, setDBack] = useState(0);
-  const [customers, setCustomers] = useState(2);
+  const [distance, setDistance] = useState(0);     // one-way only (store → last customer)
+  const [customers, setCustomers] = useState(2);   // 1 or 2
 
-  // NEW: distinct items vs total quantity
+  // Distinct items vs total units
   const [itemCount, setItemCount] = useState(0);   // distinct SKUs
-  const [totalQty, setTotalQty] = useState(0);     // includes heavies & repeats
+  const [totalQty, setTotalQty] = useState(0);     // all units incl. heavies & repeats
+
+  const [showHeavies, setShowHeavies] = useState(false);
   const [heavy, setHeavy] = useState(INITIAL_HEAVY);
+  const updateHeavy = (k) => (v) => setHeavy((h) => ({ ...h, [k]: Math.max(0, v) }));
 
-  const [showHeavies, setShowHeavies] = useState(false); // Quick by default
-
-  // keep dBack mirrored when toggle is on
-  useEffect(() => { if (sameBack) setDBack(dOut || 0); }, [sameBack, dOut]);
-
-  const updateHeavy = (key) => (v) => setHeavy((h) => ({ ...h, [key]: Math.max(0, v) }));
-
-  // Sum heavies and compute light qty automatically (never negative)
   const heavySum = useMemo(
     () =>
       Math.max(
@@ -42,9 +35,9 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
     e?.preventDefault?.();
     const input = {
       payout: Math.max(0, payout),
-      dOut: Math.max(0, dOut),
-      dBack: Math.max(0, sameBack ? dOut : dBack),
-      customers: Math.max(1, Math.floor(customers || 1)),
+      dOut: Math.max(0, distance),   // formulas already treat missing dBack as 0
+      dBack: 0,
+      customers: customers,          // 1 or 2
       itemCount: Math.max(0, Math.floor(itemCount || 0)),
       qty: {
         qLight,
@@ -60,21 +53,38 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
 
   const reset = () => {
     setPayout(0);
-    setDOut(0);
-    setSameBack(true);
-    setDBack(0);
+    setDistance(0);
     setCustomers(2);
     setItemCount(0);
     setTotalQty(0);
     setHeavy(INITIAL_HEAVY);
+    setShowHeavies(false);
     onReset?.();
   };
 
   return (
     <section className="panel">
       <h2 className="visually-hidden">Shopping — Inputs</h2>
+
+      {/* Customer selector (1 or 2) */}
+      <div className="tabs" role="tablist" aria-label="Customers" style={{ marginBottom: 8 }}>
+        {[1, 2].map((n) => (
+          <button
+            key={n}
+            role="tab"
+            className="tab-btn"
+            aria-selected={customers === n}
+            aria-label={`${n} customer${n > 1 ? "s" : ""}`}
+            title={`${n} customer${n > 1 ? "s" : ""}`}
+            onClick={() => setCustomers(n)}
+          >
+            <span className="ms">{n === 1 ? "person" : "group"}</span>
+          </button>
+        ))}
+      </div>
+
       <form className="form-grid" onSubmit={submit}>
-        {/* money + distance */}
+        {/* money + one-way distance */}
         <NumberInput
           label="Payout"
           value={payout}
@@ -85,39 +95,18 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
           placeholder="Payout"
         />
         <NumberInput
-          label="Distance Out (store → last)"
-          value={dOut}
-          onChange={setDOut}
+          label="Distance one-way"
+          value={distance}
+          onChange={setDistance}
           suffix="mi"
           icon="near_me"
           step={0.1}
-          placeholder="Out miles"
+          placeholder="Distance"
         />
 
-        <Toggle label="Return = Out" checked={sameBack} onChange={setSameBack} />
+        {/* distinct items & total units */}
         <NumberInput
-          label="Distance Back (last → store)"
-          value={sameBack ? dOut : dBack}
-          onChange={setDBack}
-          suffix="mi"
-          icon="u_turn_left"
-          step={0.1}
-          disabled={sameBack}
-          placeholder="Back miles"
-        />
-
-        <NumberInput
-          label="Customers"
-          value={customers}
-          onChange={setCustomers}
-          step={1}
-          icon="group"
-          placeholder="Customers"
-        />
-
-        {/* distinct vs total */}
-        <NumberInput
-          label="Item Count (distinct)"
+          label="Item Count (distinct SKUs)"
           value={itemCount}
           onChange={setItemCount}
           step={1}
@@ -125,7 +114,7 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
           placeholder="Items"
         />
         <NumberInput
-          label="Total Quantity (units)"
+          label="Total Units (all quantities)"
           value={totalQty}
           onChange={setTotalQty}
           step={1}
@@ -133,7 +122,7 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
           placeholder="Units"
         />
 
-        {/* Quick/Advanced heavies */}
+        {/* Heavy items toggle + fields */}
         <label className="tog" style={{ marginTop: 2 }}>
           <input
             type="checkbox"
@@ -147,54 +136,18 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
 
         {showHeavies && (
           <>
-            <NumberInput
-              label="Water cases"
-              value={heavy.qWater}
-              onChange={updateHeavy("qWater")}
-              step={1}
-              icon="water_drop"
-              placeholder="Water"
-            />
-            <NumberInput
-              label="Cat litter"
-              value={heavy.qLitter}
-              onChange={updateHeavy("qLitter")}
-              step={1}
-              icon="pets"
-              placeholder="Litter"
-            />
-            <NumberInput
-              label="Dog food (large)"
-              value={heavy.qDog}
-              onChange={updateHeavy("qDog")}
-              step={1}
-              icon="pets"
-              placeholder="Dog food"
-            />
-            <NumberInput
-              label="Soda cases"
-              value={heavy.qSoda}
-              onChange={updateHeavy("qSoda")}
-              step={1}
-              icon="local_drink"
-              placeholder="Soda"
-            />
-            <NumberInput
-              label="Other heavy"
-              value={heavy.qHeavyOther}
-              onChange={updateHeavy("qHeavyOther")}
-              step={1}
-              icon="inventory"
-              placeholder="Other heavy"
-            />
+            <NumberInput label="Water cases" value={heavy.qWater} onChange={updateHeavy("qWater")} step={1} icon="water_drop" placeholder="Water" />
+            <NumberInput label="Cat litter" value={heavy.qLitter} onChange={updateHeavy("qLitter")} step={1} icon="pets" placeholder="Litter" />
+            <NumberInput label="Dog food (large)" value={heavy.qDog} onChange={updateHeavy("qDog")} step={1} icon="pets" placeholder="Dog food" />
+            <NumberInput label="Soda cases" value={heavy.qSoda} onChange={updateHeavy("qSoda")} step={1} icon="local_drink" placeholder="Soda" />
+            <NumberInput label="Other heavy" value={heavy.qHeavyOther} onChange={updateHeavy("qHeavyOther")} step={1} icon="inventory" placeholder="Other heavy" />
           </>
         )}
       </form>
 
-      {/* helper line */}
       {showHeavies && (
         <div className="kv" style={{ marginTop: 6 }}>
-          Light qty auto: <b>{qLight}</b> (Total {totalQty} − Heavies {heavySum})
+          Light units auto: <b>{qLight}</b> (Units {totalQty} − Heavies {heavySum})
         </div>
       )}
 
