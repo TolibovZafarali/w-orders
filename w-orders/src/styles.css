@@ -152,3 +152,5 @@ body{
 .helper{margin-top:8px;padding:8px 10px;border-radius:12px;border:1px dashed var(--border);background:#f9fbff}
 
 .app__footer{margin-top:6px;color:var(--muted);font-size:12px}
+
+.ni-input::placeholder { color: var(--muted); opacity: .95; font-weight: 600; }
