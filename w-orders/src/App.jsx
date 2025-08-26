@@ -30,10 +30,6 @@ export default function App() {
         }
         <ResultCard result={result} />
       </main>
-
-      <footer className="app__footer">
-        <small>v0.2 • mobile-first • icons only • Walmart palette</small>
-      </footer>
     </div>
   );
 }

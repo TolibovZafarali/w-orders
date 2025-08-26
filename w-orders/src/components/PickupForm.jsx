@@ -64,8 +64,6 @@ export default function PickupForm({ onWorthIt, onReset }) {
 
   return (
     <section className="panel">
-      <h2 className="visually-hidden">Pickup — Inputs</h2>
-
       {/* Customer selector (1/2/3) */}
       <div className="tabs" role="tablist" aria-label="Stops" style={{ marginBottom: 8 }}>
         {[1, 2, 3].map((n) => (

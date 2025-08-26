@@ -64,8 +64,6 @@ export default function ShoppingForm({ onWorthIt, onReset }) {
 
   return (
     <section className="panel">
-      <h2 className="visually-hidden">Shopping — Inputs</h2>
-
       {/* Customer selector (1 or 2) */}
       <div className="tabs" role="tablist" aria-label="Customers" style={{ marginBottom: 8 }}>
         {[1, 2].map((n) => (
